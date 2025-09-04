@@ -15,7 +15,7 @@ The code on this repository is for code review purposes only.
 
 # Expected output
 
-The code creates a folder called "Output files" where two files (one for each animal) contaning the behavioural data, neural activity and neural trajectories are stored.
+The code creates a file for each animal and cortical area recorded and store them in a folder called "Output files". Each file contains the behavioural and neural data necessary for later analyses. 
 
 The main output of this code is the first figure of the manuscript. The figure should look like the figure below
 
