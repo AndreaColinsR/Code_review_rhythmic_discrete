@@ -23,6 +23,8 @@ i_pos=0;  % from the bottom
 
 timesmov=[-1000 400];
 
+% Loading the original dataset because the instantaneous position and speed
+% are not stored in the output files
 load([dataset_path '\' animal '_tt.mat'])
 
 if strcmp(animal,'Cousteau')
@@ -36,18 +38,23 @@ end
 Ncycle=P.mask.cycleNum;
 Ndistance=P.mask.dist;
 
-% find threshold for speed on distance 0.5 condition
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% find threshold for speed on distance 0.5 condition
 speed=zeros(sum(Ndistance==0.5),4);
 
+% compute speed profile for the 4 examples of speed in the data
 for i_ex=1:4
     speed(:,i_ex)=sqrt(P.vA(Ndistance==0.5,i_ex*2-1).^2+P.vA(Ndistance==0.5,i_ex*2).^2);
 end
 
+% define mean (across trials) of speed at mov onset for one direction and
+% pos. Movement offset is defined as the moment when the speed is lower than the threshold. 
 Threshold=mean(speed(1500,:));
 Exec_half=double(mean(speed,2)>Threshold);
 
 Exec_half(Exec_half==0)=nan;
 Ncycle(Ndistance==0.5)=Exec_half;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 distances=unique(Ndistance);
 Ndists=numel(distances);

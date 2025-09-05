@@ -73,23 +73,26 @@ Ndistance=P.mask.dist;
 condNum=P.mask.condNum;
 Ncond=max(condNum);
 
-% execution times and current number of cycles were not defined in the
-% original dataset for Ndist = 0.5. We define the end of this movement as
-% the time when the movement slows down as much as other movements do at the
-% time of movement offset. 
+% Execution times and current number of cycles were not defined in the
+% original dataset for Ndist = 0.5. 
 
-% find threshold for speed on distance 0.5 condition
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% find a threshold for speed in distance = 0.5 condition
 speed=zeros(sum(Ndistance==0.5),4);
 
+% compute speed profile for the 4 examples of speed in the data
 for i_ex=1:4
     speed(:,i_ex)=sqrt(P.vA(Ndistance==0.5,i_ex*2-1).^2+P.vA(Ndistance==0.5,i_ex*2).^2);
 end
 
+% define mean (across trials) of speed at mov onset for one direction and
+% pos. Movement offset is defined as the moment when the speed is lower than the threshold. 
 Threshold=mean(speed(1500,:));
 Exec_half=double(mean(speed,2)>Threshold);
 
 Exec_half(Exec_half==0)=nan;
 Ncycle(Ndistance==0.5)=Exec_half;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 idx_pos=[];
 idx_Ncycle=[];
@@ -134,6 +137,8 @@ mov_FR=mov_FR./norm_factor;
 
 %% pca subspace
 [coeffs,scores,~,~,explained]=pca(mov_FR);
+
+% project baseline onto subspace
 baseline=(baseline./norm_factor-mean(mov_FR,1))*coeffs;
 
 end
