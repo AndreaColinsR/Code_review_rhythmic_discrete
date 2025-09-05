@@ -1,9 +1,48 @@
-function [scores,explained,idx_pos,idx_dir,idx_dist,baseline,mov_FR,idx_Ncycle,exec]=extract_trajectories_all(animal,region,timesmov)
-% timesmov = array with timesmov(1) time relative to mov onset timesmov(2)
-% time relative to mov end
+function [scores,explained,idx_pos,idx_dir,idx_dist,baseline,mov_FR,idx_Ncycle,exec]=extract_trajectories_all(animal,region,timesmov,dataset_path)
+%% extract_trajectories_all performs PCA on the neural activity of a recording and define neural trajectories for all behavioural conditions
+%
+%% Inputs
+%
+% animal: Name of the animal to be analysed. e.g 'Drake' or 'Cousteau'
+%
+% region: Name of the region to be analysed. e.g 'M1', 'SMA' or 'EMG'
+%
+% timesmov: array indicating the times to select behavioural and neural
+% data. Times selected will start at timesmov(1) before movement onset up
+% to timesmov(2) after movement offset
+%
+% dataset_path: folder path where recordings are stored
+%
+%% Outputs
+%
+% scores: Matrix [N_times x 10] of neural activity projected onto the first 10 Principal Components (PCs)
+%
+% explained: Array [N_neurons] indicating the variance explained by each
+% PC
+%
+% idx_pos: array of N_Times elementes indicating the starting position of the trial: bottom start (1), top start (2)
+%
+% idx_dir: array of N_Times elementes denoting if in a given timebin corresponded to a trial when the animal cycled forward (2) or backward (1)
+%
+% idx_dist: array of N_Times elementes indicating the pedalling distance of the trial (0.5, 1, 2, 4, 7)
+%
+% baseline: Projection of the average neural activity between 1000-900 ms before movement onset
+% on the neural subspace
+%
+% mov_FR: Matrix [N_times x N_neurons] Average firing rate of each neuron for
+% each trial type. FR published was already filtered with a gaussian filter
+% (sigma = 25).
+%
+% idx_Ncycle: array of N_Times elementes indicating the number of the current cycle performed (1 to 7, Nan if not executing)
+%
+% exec: array of N_Times elementes denoting if in a given timebin the animal was executing a movement (1) or not (0)
+%
+%
+% 04/09/2025
+% Andrea Colins Rodriguez
 
-%load(['.\Data_Russo\' animal '_tt.mat'])
-load(['C:\Users\Acer\OneDrive - Universidad Adolfo Ibanez\Office computer\Dynamical_systems_Cortex\Data_Russo\' animal '_tt.mat'])
+load([dataset_path '\' animal '_tt.mat'])
+
 if strcmp(animal,'Cousteau')
     P=Pc;
     clear Pc
@@ -34,9 +73,10 @@ Ndistance=P.mask.dist;
 condNum=P.mask.condNum;
 Ncond=max(condNum);
 
-%%select conditions before doing PCA
-%here same direction, same starting positions, different number of cycles
-selected_conditions=zeros(Ncond,1);
+% execution times and current number of cycles were not defined in the
+% original dataset for Ndist = 0.5. We define the end of this movement as
+% the time when the movement slows down as much as other movements do at the
+% time of movement offset. 
 
 % find threshold for speed on distance 0.5 condition
 speed=zeros(sum(Ndistance==0.5),4);
@@ -47,33 +87,24 @@ end
 
 Threshold=mean(speed(1500,:));
 Exec_half=double(mean(speed,2)>Threshold);
-Mov_end=find(diff(Exec_half)==-1);
 
 Exec_half(Exec_half==0)=nan;
 Ncycle(Ndistance==0.5)=Exec_half;
-
-for i=1:Ncond
-    selected_conditions(i)= any(condNum==i & Ncycle>=1)*i;
-end
-
-selected_conditions(selected_conditions<1)=[];
-Ncond=numel(selected_conditions);
-
 
 idx_pos=[];
 idx_Ncycle=[];
 idx_dir=[];
 idx_dist=[];
 mov_FR=[];
-baseline=[];
 exec=[];
 
+baseline=nan(100*Ncond,size(P.xA_raw,2));
+
 for i=1:Ncond
-    idx=find(condNum==selected_conditions(i));
-    baseline=[baseline;P.xA_raw(idx(1:100),:)];
+    idx=find(condNum==i);
+    baseline(100*(i-1)+1:100*i,:)=P.xA_raw(idx(1:100),:);
 
     mov_onset=find(~isnan(Ncycle(idx)),1,'first');
-
 
     tstart=mov_onset+timesmov(1);
     tend=find(~isnan(Ncycle(idx)),1,'last')+timesmov(2);
@@ -105,48 +136,4 @@ mov_FR=mov_FR./norm_factor;
 [coeffs,scores,~,~,explained]=pca(mov_FR);
 baseline=(baseline./norm_factor-mean(mov_FR,1))*coeffs;
 
-
-%scores=scores-baseline;
-%% video for seminar
-%idx=find(idx_dir==1 & idx_pos==1 & idx_dist==4);
-%play_video(scores(idx,:))
-
-% colour_cycle=plasma(5);
-% id_cycles=unique(idx_dist);
-% figure
-% hold on
-% for i_cycle=1:numel(id_cycles)
-%     idx=find(idx_dir==1 & idx_pos==1 & idx_dist==id_cycles(i_cycle));
-%     plot3(scores(idx,1),scores(idx,2),scores(idx,3),'Color',colour_cycle(i_cycle,:),'LineWidth',2)
-%     plot3(scores(idx(1),1),scores(idx(1),2),scores(idx(1),3),'o','MarkerFaceColor',colour_cycle(i_cycle,:),'MarkerEdgeColor',colour_cycle(i_cycle,:))
-% 
-% 
-% end
-
-% 
-% plot3([min(scores(:,1)) max(scores(:,1))],[0 0],[0 0],'Color',[0.5 0.5 0.5],'Linewidth',2)
-% plot3([0 0],[min(scores(:,2)) max(scores(:,2))],[0 0],'Color',[0.5 0.5 0.5],'Linewidth',2)
-% plot3([0 0],[0 0],[min(scores(:,3)) max(scores(:,3))],'Color',[0.5 0.5 0.5],'Linewidth',2)
-% 
-% text(max(scores(:,1))-0.1,0.5,0.1,'PC 1','FontSize',14,'Color',[0.5 0.5 0.5]*1)
-% text(0,min(scores(:,2))-0.2,-0.4,'PC 2','FontSize',14,'Color',[0.5 0.5 0.5]*1)
-% text(-0.1,0,max(scores(:,3))+0.1,'PC 3','FontSize',14,'Color',[0.5 0.5 0.5]*1)
-% 
-% view(40,26)
-% axis off
-
-% colour_dir=[0 1 1; 1 0 0];
-% figure
-% hold on
-% for i_dir=1:2
-%     idx=find(idx_dir==i_dir & idx_pos==1 & idx_dist==4);
-% plot3(scores(idx,4),scores(idx,5),scores(idx,6),'Color',colour_dir(i_dir,:),'LineWidth',2)
-% plot3(scores(idx(1),4),scores(idx(1),5),scores(idx(1),6),'o','MarkerFaceColor',colour_dir(i_dir,:),'MarkerEdgeColor',colour_dir(i_dir,:))
-% hold on
-% plot3(baseline(:,4),baseline(:,5),baseline(:,6),'ok')
-% end
-%
-% xlabel('PC 1')
-% ylabel('PC 2')
-% zlabel('PC 3')
 end
